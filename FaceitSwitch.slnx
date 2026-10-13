@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/FaceitSwitch.Core/FaceitSwitch.Core.csproj" />
+    <Project Path="src/FaceitSwitch/FaceitSwitch.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/FaceitSwitch.Tests/FaceitSwitch.Tests.csproj" />
+  </Folder>
+</Solution>

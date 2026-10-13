@@ -1,0 +1,74 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <SolidColorBrush x:Key="SwitchAccent" Color="#FF192E" />
+  <SolidColorBrush x:Key="SwitchText" Color="#F5F5F7" />
+  <SolidColorBrush x:Key="SwitchMuted" Color="#B7BAC5" />
+  <SolidColorBrush x:Key="SwitchBorder" Color="#303136" />
+  <BooleanToVisibilityConverter x:Key="BoolVisibility" />
+  <Style x:Key="ActionButton" TargetType="Button">
+    <Setter Property="Background" Value="#303137" />
+    <Setter Property="Foreground" Value="{StaticResource SwitchText}" />
+    <Setter Property="BorderBrush" Value="#3A3B42" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Padding" Value="18,10" />
+    <Setter Property="FontSize" Value="14" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="ButtonBorder" Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8">
+            <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ButtonBorder" Property="Opacity" Value="0.86" /></Trigger>
+            <Trigger Property="IsPressed" Value="True"><Setter TargetName="ButtonBorder" Property="Opacity" Value="0.7" /></Trigger>
+            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="ButtonBorder" Property="Opacity" Value="0.42" /></Trigger>
+            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="ButtonBorder" Property="BorderBrush" Value="White" /><Setter TargetName="ButtonBorder" Property="BorderThickness" Value="2" /></Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <!-- A command button, not a two-way ToggleButton: state changes only after Windows verification. -->
+  <Style x:Key="SettingToggle" TargetType="Button">
+    <Setter Property="Width" Value="56" /><Setter Property="Height" Value="30" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="AutomationProperties.Name" Value="{Binding AccessibleLabel}" />
+    <Setter Property="ToolTip" Value="{Binding Detail}" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="Track" Background="#737680" BorderBrush="Transparent" BorderThickness="1" CornerRadius="15">
+            <Grid>
+              <Border x:Name="Thumb" Width="24" Height="24" Background="#FAFAFC" CornerRadius="12" HorizontalAlignment="Left" Margin="3,0">
+                <TextBlock x:Name="Glyph" Text="{Binding ToggleGlyph}" Foreground="#767B89" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Border>
+            </Grid>
+          </Border>
+          <ControlTemplate.Triggers>
+            <DataTrigger Binding="{Binding IsConfiguredEnabled}" Value="True">
+              <Setter TargetName="Track" Property="Background" Value="{StaticResource SwitchAccent}" />
+              <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right" />
+              <Setter TargetName="Glyph" Property="Foreground" Value="{StaticResource SwitchAccent}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding IsIndeterminate}" Value="True">
+              <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Center" />
+              <Setter TargetName="Track" Property="Background" Value="#6E5633" />
+              <Setter TargetName="Glyph" Property="Foreground" Value="#806036" />
+            </DataTrigger>
+            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Track" Property="Opacity" Value="0.45" /></Trigger>
+            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Track" Property="BorderBrush" Value="#CCCCD3" /></Trigger>
+            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Track" Property="BorderBrush" Value="White" /><Setter TargetName="Track" Property="BorderThickness" Value="2" /></Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="ProfileBullet" TargetType="TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource SwitchText}" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="Margin" Value="0,4" />
+  </Style>
+</ResourceDictionary>

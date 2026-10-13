@@ -1,0 +1,56 @@
+name: Build, test and release
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet restore FaceitSwitch.slnx --locked-mode
+      - run: dotnet build FaceitSwitch.slnx -c Release --no-restore
+      - run: dotnet test tests/FaceitSwitch.Tests/FaceitSwitch.Tests.csproj -c Release --no-build --no-restore --logger trx --results-directory artifacts/test-results
+      - run: dotnet publish src/FaceitSwitch/FaceitSwitch.csproj -c Release --no-restore -o artifacts/win-x64
+      - name: Package Windows release
+        shell: pwsh
+        run: |
+          $package = 'artifacts/package/FACEIT-Switch'
+          New-Item -ItemType Directory -Force -Path $package | Out-Null
+          Copy-Item artifacts/win-x64/FaceitSwitch.exe $package
+          Copy-Item README.md, THIRD-PARTY-NOTICES.md $package
+          Copy-Item docs/windows-validation.md $package
+          Copy-Item licenses $package -Recurse
+          $hash = (Get-FileHash "$package/FaceitSwitch.exe" -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  FaceitSwitch.exe" | Set-Content "$package/SHA256SUMS.txt" -Encoding ascii
+          Compress-Archive -Path $package -DestinationPath artifacts/FACEIT-Switch-win-x64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FACEIT-Switch-win-x64
+          path: artifacts/FACEIT-Switch-win-x64.zip
+          if-no-files-found: error
+  release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: FACEIT-Switch-win-x64
+          path: artifacts
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" artifacts/FACEIT-Switch-win-x64.zip \
+            --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --title "FACEIT Switch $RELEASE_TAG" --notes-file docs/release-notes.md
