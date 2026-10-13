@@ -1,15 +1,20 @@
 name: Build, test and release
 on:
   push:
+    branches: ['**']
+  create:
   pull_request:
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   windows:
+    if: github.event_name != 'create' || github.event.ref_type == 'tag'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'create' && github.event.ref || github.ref }}
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
@@ -35,7 +40,7 @@ jobs:
           path: artifacts/FACEIT-Switch-win-x64.zip
           if-no-files-found: error
   release:
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'create' && github.event.ref_type == 'tag' && startsWith(github.event.ref, 'v')
     needs: windows
     runs-on: ubuntu-latest
     permissions:
@@ -49,7 +54,7 @@ jobs:
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG: ${{ github.event.ref }}
         run: |
           gh release create "$RELEASE_TAG" artifacts/FACEIT-Switch-win-x64.zip \
             --repo "$GITHUB_REPOSITORY" --verify-tag \
