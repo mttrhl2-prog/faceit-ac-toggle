@@ -25,33 +25,31 @@
           <StackPanel Grid.Column="1">
             <TextBlock Text="FACEIT Switch" FontSize="28" FontWeight="Bold" />
             <TextBlock Text="FACEIT profile and security manager" FontSize="14" Foreground="{StaticResource SwitchMuted}" Margin="0,1,0,8" />
-            <Border Background="#382024" CornerRadius="5" Padding="10,4" HorizontalAlignment="Left" ToolTip="Configured state, read from Windows. Effective runtime state is shown below.">
-              <TextBlock FontSize="12"><Run Text="Current state:  " /><Run Text="{Binding CurrentState, Mode=OneWay}" Foreground="{StaticResource SwitchAccent}" FontWeight="SemiBold" /></TextBlock>
+            <Border Style="{StaticResource StateBadge}" CornerRadius="5" Padding="10,4" HorizontalAlignment="Left" ToolTip="Configured state, read from Windows. Effective runtime state is shown below.">
+              <TextBlock Style="{StaticResource StateBadgeText}" FontSize="12"><Run Text="Current state:  " /><Run Text="{Binding CurrentState, Mode=OneWay}" FontWeight="SemiBold" /></TextBlock>
             </Border>
           </StackPanel>
           <Button Grid.Column="2" Style="{StaticResource ActionButton}" Padding="10,6" VerticalAlignment="Bottom" Command="{Binding RefreshCommand}" ToolTip="Rescan Windows without changing settings" AutomationProperties.Name="Refresh configuration" Content="↻" FontSize="20" />
         </Grid>
         <Grid Margin="0,0,0,16">
           <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="18" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-          <Border Grid.Column="0" BorderBrush="{StaticResource SwitchAccent}" BorderThickness="1" CornerRadius="10" Padding="20,16" ToolTip="Enabled profile target. FACEIT compatibility and runtime protections must be checked after restart.">
-            <Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#402024" Offset="0" /><GradientStop Color="#241719" Offset="1" /></LinearGradientBrush></Border.Background>
+          <Border Grid.Column="0" Style="{StaticResource EnabledProfileCard}" ToolTip="Enabled profile target. FACEIT compatibility and runtime protections must be checked after restart.">
             <StackPanel>
               <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="42" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                <TextBlock Text="&#xE73E;" FontFamily="Segoe Fluent Icons" Foreground="{StaticResource SwitchAccent}" FontSize="32" VerticalAlignment="Center" />
+                <TextBlock Text="&#xE73E;" FontFamily="Segoe Fluent Icons" FontSize="32" VerticalAlignment="Center" />
                 <StackPanel Grid.Column="1">
                   <TextBlock Text="FACEIT ENABLED" FontSize="20" FontWeight="Bold" />
                   <TextBlock Text="Restores the full FACEIT Anti-Cheat configuration." FontSize="12" Foreground="{StaticResource SwitchMuted}" TextWrapping="Wrap" Margin="0,4,0,0" />
                 </StackPanel>
               </Grid>
-              <Border Height="1" Background="#553034" Margin="0,12,0,8" />
-              <TextBlock Style="{StaticResource ProfileBullet}"><Run Text="●  " Foreground="{StaticResource SwitchAccent}" /><Run Text="FACEIT ready" /></TextBlock>
-              <TextBlock Style="{StaticResource ProfileBullet}"><Run Text="●  " Foreground="{StaticResource SwitchAccent}" /><Run Text="Security protections enabled" /></TextBlock>
-              <TextBlock Style="{StaticResource ProfileBullet}" Foreground="{StaticResource SwitchMuted}" Text="↻  Restart required" />
-              <Button Command="{Binding EnableProfileCommand}" Style="{StaticResource ActionButton}" Background="{StaticResource SwitchAccent}" BorderBrush="{StaticResource SwitchAccent}" Margin="0,12,0,0" Content="ENABLE FACEIT  →" Height="42" />
+              <Border Height="1" Background="{StaticResource SwitchBorder}" Margin="0,12,0,8" />
+              <TextBlock Style="{StaticResource ProfileBullet}"><Run Text="●  " Foreground="{StaticResource SwitchMuted}" /><Run Text="FACEIT ready" /></TextBlock>
+              <TextBlock Style="{StaticResource ProfileBullet}"><Run Text="●  " Foreground="{StaticResource SwitchMuted}" /><Run Text="Security protections enabled" /></TextBlock>
+              <Button Command="{Binding EnableProfileCommand}" Style="{StaticResource EnabledProfileAction}" Margin="0,12,0,0" Content="ENABLE FACEIT  →" Height="42" />
             </StackPanel>
           </Border>
-          <Border Grid.Column="2" Background="#1C1D20" BorderBrush="{StaticResource SwitchBorder}" BorderThickness="1" CornerRadius="10" Padding="20,16" ToolTip="Disabled profile target. Loaded FACEIT kernel drivers remain loaded until restart.">
+          <Border Grid.Column="2" Style="{StaticResource DisabledProfileCard}" ToolTip="Disabled profile target. Loaded FACEIT kernel drivers remain loaded until restart.">
             <StackPanel>
               <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="42" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
@@ -64,8 +62,7 @@
               <Border Height="1" Background="{StaticResource SwitchBorder}" Margin="0,12,0,8" />
               <TextBlock Style="{StaticResource ProfileBullet}"><Run Text="×  " Foreground="{StaticResource SwitchMuted}" /><Run Text="Non-FACEIT mode" /></TextBlock>
               <TextBlock Style="{StaticResource ProfileBullet}"><Run Text="×  " Foreground="{StaticResource SwitchMuted}" /><Run Text="Security protections disabled" /></TextBlock>
-              <TextBlock Style="{StaticResource ProfileBullet}" Foreground="{StaticResource SwitchMuted}" Text="↻  Restart required" />
-              <Button Command="{Binding DisableProfileCommand}" Style="{StaticResource ActionButton}" Margin="0,12,0,0" Content="DISABLE FACEIT  →" Height="42" />
+              <Button Command="{Binding DisableProfileCommand}" Style="{StaticResource DisabledProfileAction}" Margin="0,12,0,0" Content="DISABLE FACEIT  →" Height="42" />
             </StackPanel>
           </Border>
         </Grid>
@@ -75,20 +72,20 @@
             <DataTemplate>
               <Border Background="#1D1E20" BorderBrush="#2A2B30" BorderThickness="1" CornerRadius="8" Margin="0,0,0,7" Padding="16,9">
                 <Grid>
-                  <Grid.ColumnDefinitions><ColumnDefinition Width="50" /><ColumnDefinition Width="*" /><ColumnDefinition Width="115" /><ColumnDefinition Width="56" /></Grid.ColumnDefinitions>
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="50" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="56" /></Grid.ColumnDefinitions>
                   <TextBlock Text="{Binding Icon}" FontFamily="Segoe Fluent Icons" FontSize="26" VerticalAlignment="Center" />
                   <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,12,0">
                     <TextBlock Text="{Binding Name}" FontSize="15" />
                     <TextBlock Text="{Binding Description}" Foreground="{StaticResource SwitchMuted}" FontSize="11.5" TextWrapping="Wrap" Margin="0,3,0,0" />
                   </StackPanel>
-                  <TextBlock Grid.Column="2" Text="{Binding StateLabel}" Foreground="{StaticResource SwitchMuted}" FontSize="10" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,8,0" ToolTip="{Binding Detail}" />
+                  <TextBlock Grid.Column="2" Text="{Binding StateLabel}" Visibility="{Binding HasStateLabel, Converter={StaticResource BoolVisibility}}" Foreground="#E4BD7B" FontSize="11" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,12,0" ToolTip="{Binding Detail}" />
                   <Button Grid.Column="3" Style="{StaticResource SettingToggle}" Command="{Binding ToggleCommand}" VerticalAlignment="Center" />
                 </Grid>
               </Border>
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
-        <TextBlock Text="{Binding RuntimeSummary}" Foreground="{StaticResource SwitchMuted}" FontSize="11" Margin="2,3,0,0" ToolTip="{Binding RuntimeDetail}" />
+        <TextBlock Text="{Binding RuntimeSummary}" TextWrapping="Wrap" Foreground="{StaticResource SwitchMuted}" FontSize="11" Margin="2,3,0,0" ToolTip="{Binding RuntimeDetail}" />
         <TextBlock Text="{Binding DependencyWarning}" Visibility="{Binding HasDependencyWarning, Converter={StaticResource BoolVisibility}}" Foreground="#E4BD7B" FontSize="12" Margin="2,6,0,0" TextWrapping="Wrap" />
         <Border Visibility="{Binding HasStatus, Converter={StaticResource BoolVisibility}}" CornerRadius="6" Padding="10,7" Margin="0,8,0,0">
           <Border.Style>

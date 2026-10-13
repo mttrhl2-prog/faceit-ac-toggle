@@ -38,13 +38,14 @@ internal sealed class FakeProcess : IProcessService
     public bool FailRead { get; set; }
     public bool FailWrite { get; set; }
     public bool IgnoreWrite { get; set; }
+    public string? ReadOutput { get; set; }
     public List<(string Executable, string[] Arguments)> Calls { get; } = [];
     public Task<ProcessResult> RunAsync(string executable, IReadOnlyList<string> arguments, CancellationToken cancellationToken = default)
     {
         Calls.Add((executable, arguments.ToArray()));
         if (arguments[0] == "/enum")
             return Task.FromResult(FailRead ? new ProcessResult(5, "", "BCD access denied")
-                : new ProcessResult(0, $"Windows Boot Loader\nidentifier {{current}}\nhypervisorlaunchtype {LaunchType}\n", ""));
+                : new ProcessResult(0, ReadOutput ?? $"Windows Boot Loader\nidentifier {{current}}\nhypervisorlaunchtype {LaunchType}\n", ""));
         if (FailWrite) return Task.FromResult(new ProcessResult(9, "operation failed", "BCD write denied"));
         if (!IgnoreWrite) LaunchType = arguments[^1];
         return Task.FromResult(new ProcessResult(0, "The operation completed successfully.", ""));

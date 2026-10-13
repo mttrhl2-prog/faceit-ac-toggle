@@ -20,8 +20,33 @@ jobs:
           global-json-file: global.json
       - run: dotnet restore FaceitSwitch.slnx --locked-mode
       - run: dotnet build FaceitSwitch.slnx -c Release --no-restore
-      - run: dotnet test tests/FaceitSwitch.Tests/FaceitSwitch.Tests.csproj -c Release --no-build --no-restore --logger trx --results-directory artifacts/test-results
+      - run: dotnet test tests/FaceitSwitch.Tests/FaceitSwitch.Tests.csproj -c Release --no-build --no-restore --logger 'trx;LogFileName=core-tests.trx' --results-directory artifacts/test-results
+      - run: dotnet test tests/FaceitSwitch.Ui.Tests/FaceitSwitch.Ui.Tests.csproj -c Release --no-build --no-restore --logger 'trx;LogFileName=ui-tests.trx' --results-directory artifacts/test-results
       - run: dotnet publish src/FaceitSwitch/FaceitSwitch.csproj -c Release --no-restore -o artifacts/win-x64
+      - name: Record validation results
+        shell: pwsh
+        run: |
+          $suites = foreach ($name in @('core-tests', 'ui-tests')) {
+            [xml]$trx = Get-Content "artifacts/test-results/$name.trx"
+            $counts = $trx.TestRun.ResultSummary.Counters
+            if ([int]$counts.executed -eq 0 -or [int]$counts.failed -ne 0 -or [int]$counts.error -ne 0) {
+              throw "Test suite $name did not complete successfully."
+            }
+            [pscustomobject]@{
+              suite = $name
+              total = [int]$counts.total
+              executed = [int]$counts.executed
+              passed = [int]$counts.passed
+              failed = [int]$counts.failed
+              notExecuted = [int]$counts.notExecuted
+            }
+          }
+          [pscustomobject]@{
+            commit = $env:GITHUB_SHA
+            build = 'Release succeeded'
+            platform = 'Windows x64'
+            suites = @($suites)
+          } | ConvertTo-Json -Depth 4 | Set-Content artifacts/validation-results.json -Encoding utf8
       - name: Package Windows release
         shell: pwsh
         run: |
@@ -37,7 +62,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: FACEIT-Switch-win-x64
-          path: artifacts/FACEIT-Switch-win-x64.zip
+          path: |
+            artifacts/FACEIT-Switch-win-x64.zip
+            artifacts/validation-results.json
           if-no-files-found: error
   release:
     if: github.event_name == 'create' && github.event.ref_type == 'tag' && startsWith(github.event.ref, 'v')
@@ -56,6 +83,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.event.ref }}
         run: |
-          gh release create "$RELEASE_TAG" artifacts/FACEIT-Switch-win-x64.zip \
+          gh release create "$RELEASE_TAG" artifacts/FACEIT-Switch-win-x64.zip artifacts/validation-results.json \
             --repo "$GITHUB_REPOSITORY" --verify-tag \
             --title "FACEIT Switch $RELEASE_TAG" --notes-file docs/release-notes.md

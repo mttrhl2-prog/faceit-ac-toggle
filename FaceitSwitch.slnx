@@ -5,5 +5,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/FaceitSwitch.Tests/FaceitSwitch.Tests.csproj" />
+    <Project Path="tests/FaceitSwitch.Ui.Tests/FaceitSwitch.Ui.Tests.csproj" />
   </Folder>
 </Solution>

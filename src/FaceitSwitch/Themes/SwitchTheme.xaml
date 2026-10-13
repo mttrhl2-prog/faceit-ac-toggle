@@ -5,6 +5,37 @@
   <SolidColorBrush x:Key="SwitchMuted" Color="#B7BAC5" />
   <SolidColorBrush x:Key="SwitchBorder" Color="#303136" />
   <BooleanToVisibilityConverter x:Key="BoolVisibility" />
+  <LinearGradientBrush x:Key="ActiveProfileBackground" StartPoint="0,0" EndPoint="1,1">
+    <GradientStop Color="#402024" Offset="0" /><GradientStop Color="#241719" Offset="1" />
+  </LinearGradientBrush>
+  <Style x:Key="ProfileCard" TargetType="Border">
+    <Setter Property="Background" Value="#1C1D20" /><Setter Property="BorderBrush" Value="{StaticResource SwitchBorder}" />
+    <Setter Property="BorderThickness" Value="1" /><Setter Property="CornerRadius" Value="10" /><Setter Property="Padding" Value="20,16" />
+  </Style>
+  <Style x:Key="EnabledProfileCard" TargetType="Border" BasedOn="{StaticResource ProfileCard}">
+    <Style.Triggers><DataTrigger Binding="{Binding IsEnabledProfileActive}" Value="True">
+      <Setter Property="BorderBrush" Value="{StaticResource SwitchAccent}" /><Setter Property="Background" Value="{StaticResource ActiveProfileBackground}" />
+    </DataTrigger></Style.Triggers>
+  </Style>
+  <Style x:Key="DisabledProfileCard" TargetType="Border" BasedOn="{StaticResource ProfileCard}">
+    <Style.Triggers><DataTrigger Binding="{Binding IsDisabledProfileActive}" Value="True">
+      <Setter Property="BorderBrush" Value="{StaticResource SwitchAccent}" /><Setter Property="Background" Value="{StaticResource ActiveProfileBackground}" />
+    </DataTrigger></Style.Triggers>
+  </Style>
+  <Style x:Key="StateBadge" TargetType="Border">
+    <Setter Property="Background" Value="#2D2E32" />
+    <Style.Triggers>
+      <DataTrigger Binding="{Binding IsEnabledProfileActive}" Value="True"><Setter Property="Background" Value="#382024" /></DataTrigger>
+      <DataTrigger Binding="{Binding IsCustomProfile}" Value="True"><Setter Property="Background" Value="#352D22" /></DataTrigger>
+    </Style.Triggers>
+  </Style>
+  <Style x:Key="StateBadgeText" TargetType="TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource SwitchMuted}" />
+    <Style.Triggers>
+      <DataTrigger Binding="{Binding IsEnabledProfileActive}" Value="True"><Setter Property="Foreground" Value="{StaticResource SwitchAccent}" /></DataTrigger>
+      <DataTrigger Binding="{Binding IsCustomProfile}" Value="True"><Setter Property="Foreground" Value="#E4BD7B" /></DataTrigger>
+    </Style.Triggers>
+  </Style>
   <Style x:Key="ActionButton" TargetType="Button">
     <Setter Property="Background" Value="#303137" />
     <Setter Property="Foreground" Value="{StaticResource SwitchText}" />
@@ -31,11 +62,22 @@
       </Setter.Value>
     </Setter>
   </Style>
+  <Style x:Key="EnabledProfileAction" TargetType="Button" BasedOn="{StaticResource ActionButton}">
+    <Style.Triggers><DataTrigger Binding="{Binding IsEnabledProfileActive}" Value="True">
+      <Setter Property="Background" Value="{StaticResource SwitchAccent}" /><Setter Property="BorderBrush" Value="{StaticResource SwitchAccent}" />
+    </DataTrigger></Style.Triggers>
+  </Style>
+  <Style x:Key="DisabledProfileAction" TargetType="Button" BasedOn="{StaticResource ActionButton}">
+    <Style.Triggers><DataTrigger Binding="{Binding IsDisabledProfileActive}" Value="True">
+      <Setter Property="Background" Value="{StaticResource SwitchAccent}" /><Setter Property="BorderBrush" Value="{StaticResource SwitchAccent}" />
+    </DataTrigger></Style.Triggers>
+  </Style>
   <!-- A command button, not a two-way ToggleButton: state changes only after Windows verification. -->
   <Style x:Key="SettingToggle" TargetType="Button">
     <Setter Property="Width" Value="56" /><Setter Property="Height" Value="30" />
     <Setter Property="Cursor" Value="Hand" />
     <Setter Property="AutomationProperties.Name" Value="{Binding AccessibleLabel}" />
+    <Setter Property="AutomationProperties.HelpText" Value="{Binding Detail}" />
     <Setter Property="ToolTip" Value="{Binding Detail}" />
     <Setter Property="Template">
       <Setter.Value>
@@ -57,6 +99,10 @@
               <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Center" />
               <Setter TargetName="Track" Property="Background" Value="#6E5633" />
               <Setter TargetName="Glyph" Property="Foreground" Value="#806036" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding IsError}" Value="True">
+              <Setter TargetName="Track" Property="Background" Value="#7B343C" />
+              <Setter TargetName="Glyph" Property="Foreground" Value="#9B3846" />
             </DataTrigger>
             <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Track" Property="Opacity" Value="0.45" /></Trigger>
             <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Track" Property="BorderBrush" Value="#CCCCD3" /></Trigger>

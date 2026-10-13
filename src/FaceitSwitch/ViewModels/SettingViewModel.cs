@@ -15,6 +15,7 @@ public sealed class SettingViewModel : ObservableObject
     public IAsyncRelayCommand ToggleCommand { get; }
     public bool IsConfiguredEnabled => reading.State == SettingState.Enabled;
     public bool IsIndeterminate => reading.State is SettingState.Mixed or SettingState.Unknown or SettingState.Error;
+    public bool IsError => reading.State == SettingState.Error;
     public string ToggleGlyph => reading.State switch
     {
         SettingState.Enabled => "✓", SettingState.Disabled => "×", SettingState.Mixed => "–",
@@ -22,11 +23,14 @@ public sealed class SettingViewModel : ObservableObject
     };
     public string StateLabel => !scanned ? "Scanning…" : reading.State switch
     {
-        SettingState.Enabled => "Configured: On", SettingState.Disabled => "Configured: Off",
-        _ => $"Configured: {reading.State}"
+        SettingState.Enabled or SettingState.Disabled => "",
+        _ => reading.State.ToString()
     };
+    public bool HasStateLabel => StateLabel.Length > 0;
     public string Detail => reading.Detail;
-    public string AccessibleLabel => $"{Name}, {StateLabel}. Click to {(IsConfiguredEnabled ? "disable" : "enable")}.";
+    public string AccessibleLabel => $"{Name}, configured state {(scanned ? reading.State.ToString() : "scanning")}. "
+        + $"Click to {(IsConfiguredEnabled ? "disable" : "enable")}."
+        + (IsError ? $" Error: {reading.Detail}" : "");
 
     public SettingViewModel(SettingId id, string name, string description, string icon, MainViewModel owner)
     {
@@ -39,6 +43,6 @@ public sealed class SettingViewModel : ObservableObject
         reading = value;
         scanned = true;
         foreach (var name in new[] { nameof(IsConfiguredEnabled), nameof(IsIndeterminate), nameof(ToggleGlyph),
-                     nameof(StateLabel), nameof(Detail), nameof(AccessibleLabel) }) OnPropertyChanged(name);
+                     nameof(IsError), nameof(StateLabel), nameof(HasStateLabel), nameof(Detail), nameof(AccessibleLabel) }) OnPropertyChanged(name);
     }
 }

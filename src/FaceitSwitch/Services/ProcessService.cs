@@ -1,7 +1,6 @@
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
-using System.Text;
+using System.Runtime.InteropServices;
 using FaceitSwitch.Core.Services;
 
 namespace FaceitSwitch.Services;
@@ -26,16 +25,18 @@ public sealed class ProcessService(ILoggingService log) : IProcessService
             UseShellExecute = false,
             CreateNoWindow = true,
             RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            StandardOutputEncoding = Encoding.GetEncoding(CultureInfo.CurrentCulture.TextInfo.OEMCodePage),
-            StandardErrorEncoding = Encoding.GetEncoding(CultureInfo.CurrentCulture.TextInfo.OEMCodePage)
+            RedirectStandardError = true
         };
         foreach (var argument in arguments) startInfo.ArgumentList.Add(argument);
         log.Write($"Process: {executable} {string.Join(' ', arguments)}");
         using var process = Process.Start(startInfo) ?? throw new IOException($"Could not start {executable}.");
         // Drain both streams concurrently to avoid deadlock on a full pipe.
-        var output = process.StandardOutput.ReadToEndAsync();
-        var error = process.StandardError.ReadToEndAsync();
+        // A WPF process normally has no console. GetOEMCP is the machine's real code page;
+        // CultureInfo.TextInfo.OEMCodePage can be an unsupported placeholder such as 1.
+        var consoleCodePage = GetConsoleOutputCP();
+        var oemCodePage = checked((int)(consoleCodePage != 0 ? consoleCodePage : GetOEMCP()));
+        var output = ReadOutputAsync(process.StandardOutput.BaseStream, oemCodePage);
+        var error = ReadOutputAsync(process.StandardError.BaseStream, oemCodePage);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(20));
         try { await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false); }
@@ -50,6 +51,21 @@ public sealed class ProcessService(ILoggingService log) : IProcessService
         }
         var result = new ProcessResult(process.ExitCode, await output.ConfigureAwait(false), await error.ConfigureAwait(false));
         log.Write($"Process completed: {executable}; exit={result.ExitCode}");
+        if (executable == "bcdedit.exe" && !string.IsNullOrWhiteSpace(result.StandardError))
+            log.Write($"BCDEdit stderr (exit {result.ExitCode}): {result.StandardError.Trim()}");
         return result;
     }
+
+    private static async Task<string> ReadOutputAsync(Stream stream, int oemCodePage)
+    {
+        using var bytes = new MemoryStream();
+        await stream.CopyToAsync(bytes).ConfigureAwait(false);
+        return ProcessOutputDecoder.Decode(bytes.ToArray(), oemCodePage);
+    }
+
+    [DllImport("kernel32.dll")]
+    private static extern uint GetOEMCP();
+
+    [DllImport("kernel32.dll")]
+    private static extern uint GetConsoleOutputCP();
 }

@@ -12,12 +12,12 @@ public sealed class MainViewModel : ObservableObject
     private readonly ProfileService profiles;
     private readonly IRuntimeStateService runtimeService;
     private readonly RestartService restart;
-    private readonly LoggingService log;
+    private readonly ILoggingService log;
     private readonly Func<bool> confirmRestart;
     private ConfigurationSnapshot? snapshot;
     private RuntimeState? runtime;
     private bool isBusy;
-    private bool restartRequired;
+    private readonly HashSet<SettingId> unconfirmedRestartSettings = [];
     private string statusMessage = "Reading the actual Windows configuration…";
     private bool isError;
 
@@ -29,7 +29,10 @@ public sealed class MainViewModel : ObservableObject
     public bool IsBusy => isBusy;
     public bool CanModify => !isBusy && snapshot is not null;
     public string CurrentState => snapshot?.Profile.ToString() ?? "Scanning…";
-    public bool RestartRequired => restartRequired;
+    public bool IsEnabledProfileActive => snapshot?.Profile == ProfileState.Enabled;
+    public bool IsDisabledProfileActive => snapshot?.Profile == ProfileState.Disabled;
+    public bool IsCustomProfile => snapshot?.Profile == ProfileState.Custom;
+    public bool RestartRequired => RuntimeMismatch || unconfirmedRestartSettings.Count > 0;
     public string StatusMessage => statusMessage;
     public bool HasStatus => !string.IsNullOrWhiteSpace(statusMessage);
     public bool IsError => isError;
@@ -39,17 +42,16 @@ public sealed class MainViewModel : ObservableObject
             ? "Memory Integrity is configured but cannot run while the Windows hypervisor is disabled." : "";
     public bool HasDependencyWarning => DependencyWarning.Length > 0;
     public string RuntimeSummary => runtime is null ? "Runtime: scanning…"
-        : $"Runtime: Memory Integrity {RuntimeLabel(runtime.MemoryIntegrityRunning)} · Hypervisor {RuntimeLabel(runtime.HypervisorPresent)}";
+        : $"Runtime: Memory Integrity {RuntimeLabel(runtime.MemoryIntegrityRunning)} · Hypervisor {RuntimeLabel(runtime.HypervisorPresent)}"
+          + $" · FACEIT {RuntimeLabel(runtime.FaceitDriverRunning)} · IOMMU {RuntimeLabel(runtime.FaceitIommuDriverRunning)}";
     public string RuntimeDetail => runtime?.Detail ?? "Runtime is separate from configured state.";
     public bool RuntimeMismatch => snapshot is not null && runtime is not null
-        && (Differs(snapshot.Settings[SettingId.MemoryIntegrity].State, runtime.MemoryIntegrityRunning)
-            || Differs(snapshot.Settings[SettingId.Hypervisor].State, runtime.HypervisorPresent));
+        && runtime.HasMismatch(snapshot);
     public string FooterText => RestartRequired ? "Restart required — configured changes are pending."
-        : RuntimeMismatch ? "Configured and runtime states differ. A restart may be required."
         : "Changes require a restart to fully apply.";
 
     public MainViewModel(ProfileService profiles, IRuntimeStateService runtimeService, RestartService restart,
-        LoggingService log, Func<bool> confirmRestart)
+        ILoggingService log, Func<bool> confirmRestart)
     {
         this.profiles = profiles; this.runtimeService = runtimeService; this.restart = restart;
         this.log = log; this.confirmRestart = confirmRestart;
@@ -83,9 +85,10 @@ public sealed class MainViewModel : ObservableObject
             UpdateSnapshot(await configuration);
             runtime = await effective;
             NotifyRuntime();
-            var failures = snapshot!.Settings.Where(s => s.Value.State == SettingState.Error)
-                .Select(s => $"{s.Key}: {s.Value.Detail}").ToArray();
-            SetStatus(failures.Length > 0 ? string.Join(Environment.NewLine, failures) : log.LastError ?? "", failures.Length > 0);
+            var failures = ConfigurationErrors().ToArray();
+            var messages = failures.Concat(string.IsNullOrWhiteSpace(runtime.Detail) ? [] : new[] { runtime.Detail }).ToList();
+            if (log.LastError is { } loggingError) messages.Add(loggingError);
+            SetStatus(string.Join(Environment.NewLine, messages), failures.Length > 0);
         }
         catch (Exception ex) { log.Write("Configuration scan failed", ex); SetStatus(ex.Message, true); }
         finally { SetBusy(false); }
@@ -100,22 +103,21 @@ public sealed class MainViewModel : ObservableObject
         {
             var result = await Task.Run(() => id is { } setting
                 ? profiles.ApplySettingAsync(setting, enabled) : profiles.ApplyProfileAsync(enabled));
-            if (result.RestartRequired)
-            {
-                restartRequired = true;
-                OnPropertyChanged(nameof(RestartRequired));
-            }
+            foreach (var operation in result.Operations)
+                if (operation.Value.RestartRequired) unconfirmedRestartSettings.Add(operation.Key);
             UpdateSnapshot(result.After);
             // Query again; never pretend that a configuration write changes runtime immediately.
             runtime = await runtimeService.ReadAsync();
             NotifyRuntime();
             var errors = result.Operations.Values.Where(o => !o.Success).Select(o => o.Message);
             var warnings = result.Operations.Values.SelectMany(o => o.Warnings ?? []);
-            var messages = errors.Concat(warnings).ToList();
+            var messages = errors.Concat(ConfigurationErrors()).Concat(warnings).Distinct().ToList();
+            if (!string.IsNullOrWhiteSpace(runtime.Detail)) messages.Add(runtime.Detail);
             if (log.LastError is { } loggingError) messages.Add(loggingError);
             SetStatus(messages.Count > 0 ? string.Join(Environment.NewLine, messages)
-                : result.RestartRequired ? "Configuration verified. Restart Windows to apply the changes."
-                : "The requested configuration is already set.", !result.Success);
+                : RestartRequired ? "Configuration verified. Restart Windows to apply the changes."
+                : result.RestartRequired ? "Configuration verified. Observed runtime matches the configuration."
+                : "The requested configuration is already set.", !result.Success || ConfigurationErrors().Any());
         }
         catch (Exception ex)
         {
@@ -145,13 +147,19 @@ public sealed class MainViewModel : ObservableObject
     {
         snapshot = value;
         foreach (var setting in Settings) setting.Update(value.Settings[setting.Id]);
-        foreach (var property in new[] { nameof(CurrentState), nameof(DependencyWarning), nameof(HasDependencyWarning),
-                     nameof(RuntimeMismatch), nameof(FooterText) }) OnPropertyChanged(property);
+        foreach (var property in new[] { nameof(CurrentState), nameof(IsEnabledProfileActive), nameof(IsDisabledProfileActive),
+                     nameof(IsCustomProfile), nameof(DependencyWarning), nameof(HasDependencyWarning),
+                     nameof(RuntimeMismatch), nameof(RestartRequired), nameof(FooterText) }) OnPropertyChanged(property);
     }
 
     private void NotifyRuntime()
     {
-        foreach (var property in new[] { nameof(RuntimeSummary), nameof(RuntimeDetail), nameof(RuntimeMismatch), nameof(FooterText) })
+        // Runtime evidence replaces the write fallback when a group can actually be compared.
+        // Blocklist changes and unavailable/mixed groups retain a conservative session-only fallback.
+        if (snapshot is not null && runtime is not null)
+            unconfirmedRestartSettings.RemoveWhere(id => runtime.CanCompare(id, snapshot.Settings[id].State));
+        foreach (var property in new[] { nameof(RuntimeSummary), nameof(RuntimeDetail), nameof(RuntimeMismatch),
+                     nameof(RestartRequired), nameof(FooterText) })
             OnPropertyChanged(property);
     }
 
@@ -170,6 +178,6 @@ public sealed class MainViewModel : ObservableObject
     }
 
     private static string RuntimeLabel(bool? value) => value is true ? "running" : value is false ? "not running" : "unavailable";
-    private static bool Differs(SettingState configured, bool? effective) => effective is { } running
-        && (configured == SettingState.Enabled && !running || configured == SettingState.Disabled && running);
+    private IEnumerable<string> ConfigurationErrors() => snapshot?.Settings
+        .Where(s => s.Value.State == SettingState.Error).Select(s => $"{s.Key}: {s.Value.Detail}") ?? [];
 }

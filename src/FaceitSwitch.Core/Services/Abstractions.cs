@@ -43,6 +43,7 @@ public interface IFaceitServiceStopper
 
 public interface ILoggingService
 {
+    string? LastError => null;
     void Write(string message, Exception? exception = null);
 }
 

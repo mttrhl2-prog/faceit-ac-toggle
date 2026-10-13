@@ -1,9 +1,8 @@
-using System.Text.RegularExpressions;
 using FaceitSwitch.Core.Models;
 
 namespace FaceitSwitch.Core.Services;
 
-public sealed partial class HypervisorService(IProcessService process, ILoggingService log) : SettingController(log)
+public sealed class HypervisorService(IProcessService process, ILoggingService log) : SettingController(log)
 {
     public override SettingId Id => SettingId.Hypervisor;
 
@@ -16,14 +15,24 @@ public sealed partial class HypervisorService(IProcessService process, ILoggingS
 
     public static SettingReading ParseConfiguration(string output)
     {
+        output = output.TrimStart('\uFEFF');
         if (string.IsNullOrWhiteSpace(output))
             return new(SettingState.Error, "BCDEdit returned no boot entry to inspect.");
-        var matches = LaunchTypeRegex().Matches(output);
-        if (matches.Count == 0)
+        var values = new List<string>();
+        using var lines = new StringReader(output);
+        while (lines.ReadLine() is { } line)
+        {
+            var parts = line.Trim().Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 0 || !parts[0].Equals("hypervisorlaunchtype", StringComparison.OrdinalIgnoreCase)) continue;
+            if (parts.Length != 2)
+                return new(SettingState.Unknown, "BCDEdit returned a malformed hypervisorlaunchtype entry.");
+            values.Add(parts[1]);
+        }
+        if (values.Count == 0)
             return new(SettingState.Enabled, "hypervisorlaunchtype is absent: Windows default is Auto. Runtime is reported separately.");
-        if (matches.Count != 1)
+        if (values.Count != 1)
             return new(SettingState.Unknown, "BCDEdit returned multiple hypervisorlaunchtype entries.");
-        var value = matches[0].Groups[1].Value;
+        var value = values[0];
         var state = value.Equals("auto", StringComparison.OrdinalIgnoreCase) ? SettingState.Enabled
             : value.Equals("off", StringComparison.OrdinalIgnoreCase) ? SettingState.Disabled : SettingState.Unknown;
         return new(state, $"Configured hypervisorlaunchtype={value}. This controls hypervisor launch only, not the full VBS configuration.");
@@ -56,6 +65,4 @@ public sealed partial class HypervisorService(IProcessService process, ILoggingS
             throw new InvalidOperationException($"BCDEdit failed (exit {result.ExitCode}). {result.StandardOutput.Trim()} {result.StandardError.Trim()}");
     }
 
-    [GeneratedRegex(@"^\s*hypervisorlaunchtype\s+(\S+)\s*$", RegexOptions.Multiline | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex LaunchTypeRegex();
 }

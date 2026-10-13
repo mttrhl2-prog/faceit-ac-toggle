@@ -11,3 +11,20 @@ These checks require the target Windows machine with FACEIT Anti-Cheat already i
 7. Cancel the restart confirmation and confirm no reboot occurs. Check logs for operation results and process exit codes, without unrelated data. Restore the desired configuration.
 
 This checklist has **not** been executed in the Linux cloud environment.
+
+## v1.0.2 patch acceptance on the target PC
+
+Preserve the user-tested baseline: TPM 2.0, Secure Boot, BIOS virtualization/SVM and IOMMU remain enabled; FACEIT-enabled hypervisor launch is Auto and HVCI is running. The reported target Device Guard state is `VirtualizationBasedSecurityStatus=2`, `SecurityServicesConfigured={2}`, `SecurityServicesRunning={2}`. The user confirmed FACEIT works with HypervisorPlatform, VirtualMachinePlatform and Hyper-V disabled and explicit `hypervisoriommupolicy` absent. The utility must not add any of those back or manage Credential Guard/System Guard.
+
+- **A — Startup:** compare all four configured states and runtime HVCI/hypervisor/FACEIT/FACEIT_IOMMU states. Confirm opening and Refresh perform no writes or service stops.
+- **B — Hypervisor scan:** when `bcdedit /enum {current}` shows `hypervisorlaunchtype Auto`, the row must be On rather than Error, including with the target Windows region/language. Other fields such as `isolatedcontext Yes` or `hypervisoriommupolicy Enable` must be ignored and never changed. Check Off and missing-element defaults as well. If a scan fails, retain the exact error and BCDEdit exit/stderr log entry for diagnosis.
+- **C — Enabled:** all four configured On means Current state Enabled, Enabled card active and Disabled card neutral. The badge uses the red accent.
+- **D — Custom:** turn one individual setting Off. Current state is Custom, both cards are neutral and the badge is amber. No other setting is implicitly changed.
+- **E — Disabled:** all four configured Off means Current state Disabled, Disabled card active and Enabled card neutral. The badge is neutral gray.
+- **F — Labels/accessibility:** normal On/Off rows have no redundant `Configured: On/Off` text. Mixed/Unknown/Error remain visible. Keyboard/screen-reader names still report setting, configured state, intended action and error information; technical Detail remains in the tooltip.
+- **G — Error:** simulate a read failure. The affected row stays indeterminate/Error, its tooltip and status panel show the exact reason and Refresh retries the scan. Error is never displayed as Off.
+- **H — Driver restart:** disable FACEIT while its drivers are loaded. The configured toggle is Off, runtime driver(s) stay running and the footer reports `Restart required — configured changes are pending.` No kernel-driver unload occurs. Neither profile card contains a static restart bullet.
+- **I — Reopen:** close before reboot and reopen. The actual driver mismatch must still produce Restart required. Check HVCI and hypervisor On/Off mismatches likewise. After a real reboot with matching observed states, the derived warning clears. Query failures remain unavailable. Blocklist-only changes have a session fallback because no reliable effective-state API is assumed.
+- **J — FACEIT enable:** before reboot verify `FACEIT_IOMMU Start=0`, `FACEIT Start=1`, `FACEITService Start=3` and `ForceEnableIommu=2`. Reboot once, then independently confirm FACEIT does not request an additional installation restart and the user-tested HVCI/security checks still pass.
+
+The Windows CI runner's tests do not replace this real Windows 11/FACEIT checklist.

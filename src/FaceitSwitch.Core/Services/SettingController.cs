@@ -10,7 +10,12 @@ public abstract class SettingController(ILoggingService log) : ISettingControlle
 
     public async Task<SettingReading> ReadStateAsync(CancellationToken cancellationToken = default)
     {
-        try { return await ReadConfigurationAsync(cancellationToken).ConfigureAwait(false); }
+        try
+        {
+            var reading = await ReadConfigurationAsync(cancellationToken).ConfigureAwait(false);
+            log.Write($"Configured scan {Id}: {reading.State}; {reading.Detail}");
+            return reading;
+        }
         catch (Exception ex)
         {
             log.Write($"Read {Id} failed", ex);
